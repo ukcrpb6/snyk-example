@@ -2,8 +2,9 @@ const express = require("express");
 const Sequelize = require("sequelize");
 const parseUrl = require("parse-url");
 const { createHash } = require("crypto");
+const _ = require("lodash");
 
-const access_token = "a_sample_token";
+const access_token = process.env.ACCESS_TOKEN;
 const app = express();
 const sequelize = new Sequelize("database", "username", "password", {
   dialect: "sqlite",
@@ -11,9 +12,9 @@ const sequelize = new Sequelize("database", "username", "password", {
 });
 
 app.post("/login", function (req, res) {
-  sequelize.query(
-    "SELECT * FROM Products WHERE name LIKE " + req.body.username
-  );
+  sequelize.query("SELECT * FROM Products WHERE name LIKE ?", {
+    replacements: [req.body.username],
+  });
 });
 
 app.get("/test", function (req, res) {
@@ -23,7 +24,7 @@ app.get("/test", function (req, res) {
 });
 
 app.get("/check", function (req, res) {
-  const passwordHash = createHash("md5")
+  const passwordHash = createHash("sha256")
     .update(argv._[0] || "test")
     .digest("hex");
 
@@ -33,13 +34,18 @@ app.get("/check", function (req, res) {
 });
 
 app.get("/check-redos", function (req, res) {
-  new RegExp(req.param('pattern')).test("value");
+  new RegExp(`${_.escapeRegExp(req.param("pattern"))}`).test("value");
 });
 
 app.get("/some/path", function (req, res) {
-  res.redirect(req.param("target"));
+  const target = req.param("target");
+  if (/^\/test$/.test(target)) {
+    res.redirect(target);
+  }
 });
 
 window.addEventListener("message", (event) => {
+  if (event.origin !== "http://localhost:8080") return;
+
   console.log(event.data);
 });
